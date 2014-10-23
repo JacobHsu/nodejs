@@ -14,14 +14,13 @@ module.exports = function() {
             vcodec   : 'libx264',
             inputBitrate :'100',
             tolerance : '100',
-            videoSize    : '640x360',
+            videoSize    : '640x360', //1080p：1920x1080 , 720p：1280x720, 480p：854x480, 360p：640x360
             outputBitrate : '600k',
             audioBitrate : '56k',
             audioChannels: '2'
         }, 
         mp4box: {
             command: 'mp4box -split 6 '//, //mp4box -inter 0.5 
-
         }
     }
     return config;
