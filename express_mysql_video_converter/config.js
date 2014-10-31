@@ -3,6 +3,14 @@ module.exports = function(app) {
         server: {
             port: 8080
         },
+        mysql: {
+            host     : '127.0.0.1',
+            user     : 'root',
+            port     : '3306',
+            password : 'yourpwd',
+            database : 'test',
+            connectionLimit : 10,
+        },
         wget: { 
             command: 'wget --no-check-certificate ',
             output: ' -O videos/'
@@ -10,7 +18,7 @@ module.exports = function(app) {
         ffmpeg: { //https://www.ffmpeg.org/ffmpeg.html
             command  : 'ffmpeg',
             input    : 'videos/',
-            output   : 'C:/xampp/htdocs/files/',//output/',
+            output   : 'C:/xampp/htdocs/files/',
             vcodec   : 'libx264',
             inputBitrate :'100',
             tolerance : '100',
@@ -21,7 +29,7 @@ module.exports = function(app) {
             logfile: '/log/log.txt'
         }, 
         mp4box: {
-            command: 'mp4box -split 6 '//, //mp4box -inter 0.5 
+            command: 'mp4box -inter 0.5 '//, 'mp4box -split 6 ' 
         }
     };
 };

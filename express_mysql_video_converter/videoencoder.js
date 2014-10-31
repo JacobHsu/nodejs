@@ -9,10 +9,10 @@ module.exports = function (postReq){
     async.waterfall([
         function(callback){
 
-            callback(null, postReq); 
+            callback(null); 
 
         },
-        function(postReq, callback){
+        function(callback){ 
 
            
             var fileName = url.parse(postReq.fileurl).pathname.split('/').pop();
@@ -24,16 +24,16 @@ module.exports = function (postReq){
                 if (err) throw err;
                 else {
 
-                    console.log('====wget fun2: '+postReq.fileurl);
+                    console.log('[videoencoder] wget : '+postReq.fileurl);
               
-                    callback(null, postReq, fileName);
+                    callback(null, fileName); 
                 
                 }
             });
 
         },
-        function(postReq, fileName, callback){
-            //console.log(postReq.btype);
+        function(fileName, callback){ 
+ 
             var btypeVideoSize;
             var size = postReq.btype.split(',');
             if('' != size) {
@@ -79,7 +79,7 @@ module.exports = function (postReq){
             ffmpeg.on('exit', function (code) {
                 console.log('exit:'+code+' (0:Success 1:Fail) ');
                 console.log('convert time:', ((new Date() - start) / 1000), 's');
-                console.log('====ffmpeg fun3: '+outputVideo);
+                console.log('[videoencoder] ffmpeg : '+outputVideo);
                 callback(null, outputVideo);
             });
             
@@ -96,7 +96,7 @@ module.exports = function (postReq){
                 if (err) throw err;
                 else{
        
-                    console.log('====mp4box fun4: '+mp4box);
+                    console.log('[videoencoder] mp4box : '+mp4box);
                     callback(null, 'done'); 
                 } 
             });

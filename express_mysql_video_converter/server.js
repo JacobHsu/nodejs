@@ -24,6 +24,6 @@ exports.start = function (config) {
     require('./router')(app);
 
     var server = app.listen(config.port, function() {
-        console.log('Listening on port %d', server.address().port);
+        console.log('[server] Listening on port %d', server.address().port);
     });
 }
