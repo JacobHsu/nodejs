@@ -29,7 +29,7 @@ module.exports = function(app) {
             logfile: '/log/log.txt'
         }, 
         mp4box: {
-            command: 'mp4box -inter 0.5 '//, 'mp4box -split 6 ' 
+            command: 'mp4box -raw 2 '//, Audio: 'mp4box -raw 2 '  -inter 0.5  
         }
     };
 };
