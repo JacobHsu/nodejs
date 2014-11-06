@@ -1,65 +1,74 @@
 global.mysql   = require('./mysql');
 var async = require('async');
-module.exports = function (postReq, my_callback){
+module.exports = function (postReq, module_callback){
 
 	mysql.start(config.mysql);
 
     async.waterfall([
 
         function(callback){
-            // do some stuff ...
-            mysql.execSql('INSERT INTO videoencoder SET ?', postReq, function (err, rows) {    
-                //my_callback();
-                console.log('[router] post insert');
+
+            mysql.execSql('INSERT INTO '+config.dbtable.table+' SET ?', postReq, function (err, rows) {    
+
+                console.log('[queue] job start :post insert');
                 callback(null, 'insert');
             });
-             //console.log('[router] post insert');
+  
         },
         function(insertResult, callback){
-            // do some more stuff ...
-            mysql.execSql('SELECT * FROM videoencoder where state= 0 limit 1', [], function (err, rows) {        
-            if (!rows[0]) {
-                return;
-            }
 
-            for(var key in rows)
- 
-                callback(null, rows[key].id, rows[key].fileurl, rows[key].btype);
-            });
-        },
-        function(queryID, queryFileurl, queryBtype, callback){
-            // do some more stuff ...
-            console.log('[router] videoReq - '+queryID+':'+queryFileurl+queryBtype);//[0]
+            mysql.execSql('SELECT * FROM '+config.dbtable.table+' where state= 0 ', [], function (err, rows) {        
+                if (!rows[0]) {
+                    return;
+                }
+               
+                console.log(rows);
 
-              var videoReq = { 
-                fileurl: queryFileurl, 
-                btype: queryBtype
-              };
+                var q = async.queue(function (task, callback) {
 
-            require('./videoencoder')(videoReq, function (result) {          
-                console.log('[router] videoencoder:'+result);
-                callback(null, queryID);
-            });
+                    console.log('========== queue:task '+ task.id +' ==========');
 
-            
-        },
-        function(queryID, callback){
+                    var videoReq = { 
+                        fileurl: task.fileurl, 
+                        btype: task.btype
+                    };
+                    
+                    require('./videoencoder')(videoReq, function (result) {          
+                        console.log('[queue] videoencoder: task '+ task.id + ' '+result + ' UPDATE state=1');
+                        //mysql.execSql('DELETE FROM '+config.dbtable.table+' WHERE id = ?', task.id, function (err, rows){        
+                        mysql.execSql('UPDATE '+config.dbtable.table+' SET state = 1 WHERE id=?',task.id, function (err, rows){
+                            if(err){
+                                console.log(err);
+                            }                            
+                        });
 
-            mysql.execSql('DELETE FROM videoencoder WHERE id = ?', queryID, function (err, rows){        
+                        callback();
+                    });
+                    
+                }, 1);
 
-                if(err){
-                    console.log(err);
+
+                q.push(rows, function (err) {
+                    console.log('[queue] finished processing');
+
+                });
+                q.drain = function() {
+                    console.log('========== queue: all items have been processed ==========');
+                    //callback(null, 'done');
+                    module_callback('done');
                 }
 
-                console.log('[router] DELETE '+queryID);  
-                callback(null, 'done');
-            });
+             });
         }
     ],
-    // optional callback
     function(err, results){
-        // results is now equal to ['one', 'two']
-        console.log('[router] job end :'+results);
+        console.log('[queue] job end :'+results);
+       
     });
 
 } 
+
+
+
+
+

@@ -30,7 +30,7 @@ module.exports = function(app) {
         //var post  = req.body ;//{ fileurl: 'url', btype:'1080p,720p',state:'0'};
         require('./queue')(req.body, function (result) {          
             console.log('[router] queue:'+result);
-            callback(null, 'done');
+
         });
         // usesql.insertdb(post, function(result){
         //     console.log('[router] post inserted'+post);

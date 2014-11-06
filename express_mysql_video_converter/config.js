@@ -11,6 +11,9 @@ module.exports = function(app) {
             database : 'test',
             connectionLimit : 10,
         },
+        dbtable: {
+            table    : 'videoencoder'
+        },
         wget: { 
             command: 'wget --no-check-certificate ',
             output: ' -O videos/'

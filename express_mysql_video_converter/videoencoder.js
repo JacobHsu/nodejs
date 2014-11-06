@@ -69,7 +69,7 @@ module.exports = function (postReq, my_callback){
 
             var str = args.toString()
             var commandstr = str.replace(/,/g, " ");
-            console.log('ffmpeg command:'+commandstr);
+            //console.log('ffmpeg command:'+commandstr);
 
             var spawn = require('child_process').spawn,
                 ffmpeg = spawn(command, args),
@@ -99,14 +99,13 @@ module.exports = function (postReq, my_callback){
         },
         function(outputVideoArray,callback){
 
-             async.map(outputVideoArray, mp4boxExeMap, function (err, result) {
-              if(!err) {
-                console.log('[videoencoder] mp4box Finished: ' + result);
-                callback(null, 'Finished');  
-              } else {
-                console.log('Error: ' + err);
-              }
-
+            async.map(outputVideoArray, mp4boxExeMap, function (err, result) {
+                if(!err) {
+                    console.log('[videoencoder] mp4box Finished: ' + result);
+                    callback(null, 'Finished');  
+                } else {
+                    console.log('Error: ' + err);
+                }
             });
         }
     ], function (err, result) {   
@@ -123,7 +122,7 @@ function mp4boxExeMap(outputVideo, callback) {
         if (err) throw err;
     });  
     child.on('exit', function (code) {
-        console.log('[videoencoder] mp4box : '+mp4box+' exit:'+code+' (0:Success 1:Fail) ');
+        console.log('[videoencoder] mp4box : '+mp4box.slice(-25)+' exit:'+code+' (0:Success 1:Fail) ');
         callback(null, mp4box.slice(-9)); 
     });
 }
