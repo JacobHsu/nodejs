@@ -28,7 +28,7 @@ module.exports = function(app) {
         //        "state":"0"
         //}
         //var post  = req.body ;//{ fileurl: 'url', btype:'1080p,720p',state:'0'};
-        require('./queue')(req.body, function (result) {          
+        require('./queue')(req.body, req.headers.host, function (result) {          
             console.log('[router] queue:'+result);
 
         });

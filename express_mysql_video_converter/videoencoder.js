@@ -11,24 +11,33 @@ module.exports = function (postReq, my_callback){
         function(callback){ 
 
             var fileName = url.parse(postReq.fileurl).pathname.split('/').pop();
+            var uuidFileName = uuid.v1();
+            var path = config.wget.dir +uuidFileName+'.mp4';
+     
+            fs.exists(path, function(exists) {
+                console.log(exists ? "[videoencoder] exists" : "[videoencoder]  no exists!");
+                if (exists) {
+                    var newUuidFileName = uuid.v1();
+                    path = config.wget.dir +newUuidFileName+'.mp4';
+                }
+            });
 
             var exec = require('child_process').exec,child;
-            var wget = config.wget.command + postReq.fileurl + config.wget.output +fileName+'.mp4';
+            var wget = config.wget.command + postReq.fileurl + config.wget.output + path;
 
             child = exec(wget, function(err, stdout, stderr) {
                 if (err) throw err;
                 else {
                     console.log('[videoencoder] wget : '+postReq.fileurl);
-                    callback(null, fileName); 
+                    callback(null, uuidFileName); 
                 }
             });
 
         },
-        function(fileName, callback){ 
+        function(uuidFileName, callback){ 
             
             var command = config.ffmpeg.command;
-            var inputVideo = config.ffmpeg.input+fileName+'.mp4'; 
-            var uuidFileName = uuid.v1();
+            var inputVideo = config.ffmpeg.input+uuidFileName+'.mp4'; 
             var outputVideoName = config.ffmpeg.output+uuidFileName;
             var outputVideo,outputVideoArray=[];
 

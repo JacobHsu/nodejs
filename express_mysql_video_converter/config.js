@@ -16,7 +16,8 @@ module.exports = function(app) {
         },
         wget: { 
             command: 'wget --no-check-certificate ',
-            output: ' -O videos/'
+            output: ' -O ',
+            dir: 'videos/'
         },
         ffmpeg: { //https://www.ffmpeg.org/ffmpeg.html
             command  : 'ffmpeg',

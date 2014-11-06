@@ -1,6 +1,8 @@
 global.mysql   = require('./mysql');
 var async = require('async');
-module.exports = function (postReq, module_callback){
+module.exports = function (postReq, postFrom, module_callback){
+    
+    postReq.from = postFrom;
 
 	mysql.start(config.mysql);
 
