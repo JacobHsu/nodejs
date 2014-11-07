@@ -1,14 +1,15 @@
 {
     "name": "VideoEncoderScheduler",
-    "description": "express mysql wget ffmpeg mp4box",
-    "version": "0.0.1",
+    "description": "express mysql queue wget ffmpeg mp4box request",
+    "version": "0.0.2",
     "private": true,
     "dependencies": {
         "express": "4.x",
         "body-parser": "1.X",
         "node-uuid": "1.x",
         "async":"*", 
-        "mysql": "*",       
+        "mysql": "*",  
+        "request": "*",     
         "bufferhelper": "*"
     }
 }

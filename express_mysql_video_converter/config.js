@@ -12,7 +12,10 @@ module.exports = function(app) {
             connectionLimit : 10,
         },
         dbtable: {
-            table    : 'videoencoder'
+            table: 'videoencoder'
+        },
+        files: {
+            url : 'http://127.0.0.1/files/'
         },
         wget: { 
             command: 'wget --no-check-certificate ',

@@ -5,17 +5,15 @@ var uuid = require('node-uuid');
 var fs = require('fs');
 
 
-module.exports = function (postReq, my_callback){
+module.exports = function (postReq, module_callback){
 
     async.waterfall([
         function(callback){ 
 
-            var fileName = url.parse(postReq.fileurl).pathname.split('/').pop();
             var uuidFileName = uuid.v1();
             var path = config.wget.dir +uuidFileName+'.mp4';
      
             fs.exists(path, function(exists) {
-                console.log(exists ? "[videoencoder] exists" : "[videoencoder]  no exists!");
                 if (exists) {
                     var newUuidFileName = uuid.v1();
                     path = config.wget.dir +newUuidFileName+'.mp4';
@@ -79,6 +77,7 @@ module.exports = function (postReq, my_callback){
             var str = args.toString()
             var commandstr = str.replace(/,/g, " ");
             //console.log('ffmpeg command:'+commandstr);
+            console.log('[videoencoder] ffmpeg : ');
 
             var spawn = require('child_process').spawn,
                 ffmpeg = spawn(command, args),
@@ -89,10 +88,13 @@ module.exports = function (postReq, my_callback){
             });
             ffmpeg.stderr.on('data',function(data){
                 //console.log('stderr:', data.toString());
+                process.stdout.write("\#%");
+
                 fs.appendFileSync(__dirname+config.ffmpeg.logfile, data.toString() );
+
             });
             ffmpeg.on('exit', function (code) {
-               
+                fs.appendFileSync(__dirname+config.ffmpeg.logfile, '~~~~~~~~~~~~~~~~~~~~~~~');
                 console.log('exit:'+code+' (0:Success 1:Fail) ');
                 
                 if(code==0){
@@ -110,15 +112,21 @@ module.exports = function (postReq, my_callback){
 
             async.map(outputVideoArray, mp4boxExeMap, function (err, result) {
                 if(!err) {
-                    console.log('[videoencoder] mp4box Finished: ' + result);
-                    callback(null, 'Finished');  
+
+                    var filesJSON = '{"files":'+JSON.stringify(result)+'}';
+                    require('./request')(filesJSON, postReq.recipient ,function (result) {          
+                        console.log('[videoencoder] callback request:'+result);
+                        callback(null, 'Finished'); 
+                    });
+
+                     
                 } else {
                     console.log('Error: ' + err);
                 }
             });
         }
     ], function (err, result) {   
-         my_callback(result);
+         module_callback(result);
     });
 } 
 
@@ -132,7 +140,8 @@ function mp4boxExeMap(outputVideo, callback) {
     });  
     child.on('exit', function (code) {
         console.log('[videoencoder] mp4box : '+mp4box.slice(-25)+' exit:'+code+' (0:Success 1:Fail) ');
-        callback(null, mp4box.slice(-9)); 
+        var fileurl =  config.files.url + mp4box.split('/').pop();
+        callback(null, fileurl );  
     });
 }
 
