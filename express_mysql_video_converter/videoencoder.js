@@ -143,7 +143,10 @@ module.exports = function (postReq, taskId, module_callback){
             async.map(outputVideoArray, mp4boxExeMap, function (err, result) {
                 if(!err) {
 
-                    var filesJSON = '{"files":'+JSON.stringify(result)+'}';
+                    var jsonObj = new Object();
+                    jsonObj.files = result;
+                    var filesJSON = JSON.stringify(jsonObj);
+
                     require('./request')(filesJSON, postReq.recipient ,function (result) {          
                         console.log('[videoencoder] callback request:'+result);
                         callback(null, 'Finished'); 
