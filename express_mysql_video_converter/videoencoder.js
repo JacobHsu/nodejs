@@ -5,7 +5,7 @@ var uuid = require('node-uuid');
 var fs = require('fs');
 
 
-module.exports = function (postReq, module_callback){
+module.exports = function (postReq, taskId, module_callback){
 
     async.waterfall([
         function(callback){ 
@@ -86,9 +86,39 @@ module.exports = function (postReq, module_callback){
             ffmpeg.stdout.on('data',function(data){
                 console.log('stdout:', data);
             });
+
+            var duration = 0, time = 0, progress = 0;
+
             ffmpeg.stderr.on('data',function(data){
-                //console.log('stderr:', data.toString());
-                process.stdout.write("\#%");
+               // console.log('stderr:', data.toString());
+               
+                var content = data.toString();
+                var totalTime = (content) ? content.match(/Duration: (.*?), start:/) : [];
+       
+                if( totalTime ){
+                    var rawDuration = totalTime[1];
+                    var arHMS = rawDuration.split(":").reverse();
+                    duration = parseFloat(arHMS[0]);
+                    if (arHMS[1]) duration += parseInt(arHMS[1]) * 60;
+                    if (arHMS[2]) duration += parseInt(arHMS[2]) * 60 * 60;
+
+                }
+       
+                var getTime = content.match(/time=(.*?) bitrate/g);
+
+                if( getTime ){
+                    var rawTime = getTime[0].replace('time=','').replace(' bitrate','');
+
+                    arHMS = rawTime.split(":").reverse();
+                    time = parseFloat(arHMS[0]);
+                    if (arHMS[1]) time += parseInt(arHMS[1]) * 60;
+                    if (arHMS[2]) time += parseInt(arHMS[2]) * 60 * 60;
+
+                    progress = Math.round((time/duration) * 100);
+                    process.stdout.write( parseInt(duration - time)+"\#"+progress+"% ");
+
+                    updateProgress(progress, taskId);
+                }
 
                 fs.appendFileSync(__dirname+config.ffmpeg.logfile, data.toString() );
 
@@ -142,6 +172,15 @@ function mp4boxExeMap(outputVideo, callback) {
         console.log('[videoencoder] mp4box : '+mp4box.slice(-25)+' exit:'+code+' (0:Success 1:Fail) ');
         var fileurl =  config.files.url + mp4box.split('/').pop();
         callback(null, fileurl );  
+    });
+}
+
+function updateProgress(progress, taskId) {
+
+    mysql.execSql('UPDATE '+config.dbtable.table+' SET progress = ? WHERE id=?',[progress,taskId], function (err, rows){
+        if(err){
+            console.log(err);
+        }                            
     });
 }
 

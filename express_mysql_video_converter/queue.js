@@ -43,7 +43,7 @@ module.exports = function (postReq, postFrom, module_callback){
                         recipient: task.recipient
                     };
                     
-                    require('./videoencoder')(videoReq, function (result) {          
+                    require('./videoencoder')(videoReq, task.id, function (result) {          
                         console.log('[queue] videoencoder: task '+ task.id + ' '+result + ' UPDATE state=1');
       
                         mysql.execSql('UPDATE '+config.dbtable.table+' SET state = 1 , progress = ? WHERE id=?',['done',task.id], function (err, rows){
