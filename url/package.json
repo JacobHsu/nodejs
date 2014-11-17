@@ -1,0 +1,10 @@
+{
+  "name": "url",
+  "author": "Jacob Hsu",
+  "version": "0.0.1",
+  "description": "npm url",
+  "dependencies": {
+    "url": "*"
+  }
+
+}
