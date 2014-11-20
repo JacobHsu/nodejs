@@ -15,7 +15,7 @@ module.exports = function(app) {
             table: 'videoencoder'
         },
         files: {
-            url : 'http://127.0.0.1/files/'
+            url : 'http://files/'
         },
         wget: { 
             command: 'wget --no-check-certificate ',

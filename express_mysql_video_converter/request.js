@@ -9,9 +9,13 @@ module.exports = function (httpReqJSON, httpRecipient, module_callback){
 	};
 
 	request(options, function (error, response, body) {
+
+		if(error)
+			console.log('[request]error:'+error);
 		if (!error && response.statusCode == 200) {
 			module_callback(body);
-		}
+		}else
+			console.log('[request]statusCode:'+response.statusCode);
 	});
 
 }

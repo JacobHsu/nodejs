@@ -94,6 +94,9 @@ module.exports = function (postReq, taskId, module_callback){
                
                 var content = data.toString();
                 var totalTime = (content) ? content.match(/Duration: (.*?), start:/) : [];
+
+                if(totalTime)
+                    console.log('[videoencoder] '+ totalTime);
        
                 if( totalTime ){
                     var rawDuration = totalTime[1];
@@ -139,15 +142,17 @@ module.exports = function (postReq, taskId, module_callback){
             
         },
         function(outputVideoArray,callback){
-
+            
             async.map(outputVideoArray, mp4boxExeMap, function (err, result) {
                 if(!err) {
 
+                    var videoHash = url.parse(postReq.fileurl).pathname.split('/').slice(-2).shift(); 
+
                     var jsonObj = new Object();
                     jsonObj.files = result;
-                    var filesJSON = JSON.stringify(jsonObj);
+                    jsonObj.videoHash = videoHash;
 
-                    require('./request')(filesJSON, postReq.recipient ,function (result) {          
+                    require('./request')(jsonObj, postReq.recipient ,function (result) {          
                         console.log('[videoencoder] callback request:'+result);
                         callback(null, 'Finished'); 
                     });
