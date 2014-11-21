@@ -1,11 +1,14 @@
 global.mysql   = require('./mysql');
 var async = require('async');
+var moment = require('moment');
 
-module.exports = function (postReq, postFrom, module_callback){
+module.exports = function (postReq, postFrom, postAgent, module_callback){
     
     postReq.progress = 'start';
     postReq.from = postFrom;
-
+    postReq.agent = postAgent;
+    postReq.enterdate = moment().format('YYYY-MM-DD, hh:mm:ss');
+    postReq.log = 'start';
 
 	mysql.start(config.mysql);
 

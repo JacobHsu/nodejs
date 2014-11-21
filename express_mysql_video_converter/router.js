@@ -4,10 +4,10 @@ module.exports = function(app) {
         res.send('Got a GET request');       
         console.log(req.query);
     });
-
+   
     app.post('/post', function (req, res) {
-  
-        require('./queue')(req.body, req.headers.host, function (result) {          
+
+        require('./queue')(req.body, req.connection.remoteAddress, req.headers['user-agent'], function (result) {          
             console.log(result);
         });
 

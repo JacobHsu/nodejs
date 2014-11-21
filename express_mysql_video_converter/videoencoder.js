@@ -123,6 +123,7 @@ module.exports = function (postReq, taskId, module_callback){
                     updateProgress(progress, taskId);
                 }
 
+                updateLog(data.toString(), taskId);
                 fs.appendFileSync(__dirname+config.ffmpeg.logfile, data.toString() );
 
             });
@@ -190,6 +191,20 @@ function updateProgress(progress, taskId) {
             console.log(err);
         }                            
     });
+}
+
+function updateLog(log, taskId) {
+
+    mysql.execSql('SELECT log FROM '+config.dbtable.table+' WHERE id=?',[taskId], function (err, rows){
+
+        mysql.execSql('UPDATE '+config.dbtable.table+' SET log = ? WHERE id=?',[ rows[0].log+log ,taskId], function (err, rows){
+            if(err){
+                console.log(err);
+            }                            
+        });         
+
+    });
+
 }
 
 
