@@ -1,6 +1,7 @@
 global.mysql   = require('./mysql');
 var async = require('async');
 var moment = require('moment');
+var colors = require('colors');
 
 module.exports = function (postReq, postFrom, postAgent, module_callback){
     
@@ -18,7 +19,7 @@ module.exports = function (postReq, postFrom, postAgent, module_callback){
 
             mysql.execSql('INSERT INTO '+config.dbtable.table+' SET ?', postReq, function (err, rows) {    
 
-                console.log('========== [queue] job start ==========');
+                console.log('========== [queue] job start =========='.yellow);
                 if(err){
                   console.log(err);
                 }else{

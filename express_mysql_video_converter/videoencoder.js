@@ -147,10 +147,12 @@ module.exports = function (postReq, taskId, module_callback){
             async.map(outputVideoArray, mp4boxExeMap, function (err, result) {
                 if(!err) {
 
+                    var fileName = url.parse(postReq.fileurl).pathname.split('/').pop().split('.').shift();
                     var videoHash = url.parse(postReq.fileurl).pathname.split('/').slice(-2).shift(); 
 
                     var jsonObj = new Object();
                     jsonObj.files = result;
+                    jsonObj.filename = fileName;
                     jsonObj.videoHash = videoHash;
 
                     require('./request')(jsonObj, postReq.recipient ,function (result) {          
