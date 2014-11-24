@@ -11,12 +11,17 @@ module.exports = function (postReq, taskId, module_callback){
         function(callback){ 
 
             var uuidFileName = uuid.v1();
-            var path = config.wget.dir +uuidFileName+'.mp4';
+
+            if (!fs.existsSync(config.wget.dir)){
+                fs.mkdirSync(config.wget.dir);
+            }
+            
+            var path = config.wget.dir +'/'+uuidFileName+'.mp4';
      
             fs.exists(path, function(exists) {
                 if (exists) {
                     var newUuidFileName = uuid.v1();
-                    path = config.wget.dir +newUuidFileName+'.mp4';
+                    path = config.wget.dir +'/'+newUuidFileName+'.mp4';
                 }
             });
 
