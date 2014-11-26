@@ -1,11 +1,11 @@
 global.config  = require('./config')();
+
 var async = require('async');
 var url = require("url");
 var uuid = require('node-uuid');
 var fs = require('fs');
 
-
-module.exports = function (postReq, taskId, module_callback){
+process.on('message', function(videoReq) {
 
     async.waterfall([
         function(callback){ 
@@ -26,12 +26,12 @@ module.exports = function (postReq, taskId, module_callback){
             });
 
             var exec = require('child_process').exec,child;
-            var wget = config.wget.command + postReq.fileurl + config.wget.output + path;
+            var wget = config.wget.command + videoReq.fileurl + config.wget.output + path;
 
             child = exec(wget, function(err, stdout, stderr) {
                 if (err) throw err;
                 else {
-                    console.log('[videoencoder] wget : '+postReq.fileurl);
+                    console.log('[videoencoder] wget : '+videoReq.fileurl);
                     callback(null, uuidFileName); 
                 }
             });
@@ -47,7 +47,7 @@ module.exports = function (postReq, taskId, module_callback){
             var input_args = ['-i',inputVideo,'-pass','1','-vcodec',config.ffmpeg.vcodec,'-b:v',config.ffmpeg.inputBitrate,'-bt',config.ffmpeg.tolerance,'-threads','0','-qmin','10','-qmax','31','-g','30']; 
 
             var args = input_args;
-            var size = postReq.btype.split(',');
+            var size = videoReq.btype.split(',');
             if('' != size) {
                 for(var n in size){
                     if(size[n]==="1080p"){
@@ -113,6 +113,8 @@ module.exports = function (postReq, taskId, module_callback){
                 }
        
                 var getTime = content.match(/time=(.*?) bitrate/g);
+                
+                var queue  = require('./queue');
 
                 if( getTime ){
                     var rawTime = getTime[0].replace('time=','').replace(' bitrate','');
@@ -124,16 +126,21 @@ module.exports = function (postReq, taskId, module_callback){
 
                     progress = Math.round((time/duration) * 100);
                     process.stdout.write( parseInt(duration - time)+"\#"+progress+"% ");
-
-                    updateProgress(progress, taskId);
+                    
+                    queue.updateProgress(progress, videoReq.taskid, function(result){
+                        //console.log(result);
+                    });
                 }
 
-                updateLog(data.toString(), taskId);
-                fs.appendFileSync(__dirname+config.ffmpeg.logfile, data.toString() );
+                queue.updateLog(data.toString(), videoReq.taskid, function(result){
+                    //console.log(result);
+                });
+ 
+                //fs.appendFileSync(__dirname+config.ffmpeg.logfile, data.toString() );
 
             });
             ffmpeg.on('exit', function (code) {
-                fs.appendFileSync(__dirname+config.ffmpeg.logfile, '~~~~~~~~~~~~~~~~~~~~~~~');
+                //fs.appendFileSync(__dirname+config.ffmpeg.logfile, '~~~~~~~~~~~~~~~~~~~~~~~');
                 console.log('exit:'+code+' (0:Success 1:Fail) ');
                 
                 if(code==0){
@@ -152,17 +159,17 @@ module.exports = function (postReq, taskId, module_callback){
             async.map(outputVideoArray, mp4boxExeMap, function (err, result) {
                 if(!err) {
 
-                    var fileName = url.parse(postReq.fileurl).pathname.split('/').pop().split('.').shift();
-                    var videoHash = url.parse(postReq.fileurl).pathname.split('/').slice(-2).shift(); 
+                    var fileName = url.parse(videoReq.fileurl).pathname.split('/').pop().split('.').shift();
+                    var videoHash = url.parse(videoReq.fileurl).pathname.split('/').slice(-2).shift(); 
 
                     var jsonObj = new Object();
                     jsonObj.files = result;
                     jsonObj.filename = fileName;
                     jsonObj.videoHash = videoHash;
 
-                    require('./request')(jsonObj, postReq.recipient ,function (result) {          
+                    require('./request')(jsonObj, videoReq.recipient ,function (result) {          
                         console.log('[videoencoder] callback request:'+result);
-                        callback(null, 'Finished'); 
+                        callback(null, { taskid:videoReq.taskid, state:'Finished' });  
                     });
 
                      
@@ -172,9 +179,12 @@ module.exports = function (postReq, taskId, module_callback){
             });
         }
     ], function (err, result) {   
-         module_callback(result);
+         //module_callback(result);
+          process.send(result);
     });
-} 
+
+
+}); 
 
 function mp4boxExeMap(outputVideo, callback) {
 
@@ -190,28 +200,4 @@ function mp4boxExeMap(outputVideo, callback) {
         callback(null, fileurl );  
     });
 }
-
-function updateProgress(progress, taskId) {
-
-    mysql.execSql('UPDATE '+config.dbtable.table+' SET progress = ? WHERE id=?',[progress,taskId], function (err, rows){
-        if(err){
-            console.log(err);
-        }                            
-    });
-}
-
-function updateLog(log, taskId) {
-
-    mysql.execSql('SELECT log FROM '+config.dbtable.table+' WHERE id=?',[taskId], function (err, rows){
-
-        mysql.execSql('UPDATE '+config.dbtable.table+' SET log = ? WHERE id=?',[ rows[0].log+log ,taskId], function (err, rows){
-            if(err){
-                console.log(err);
-            }                            
-        });         
-
-    });
-
-}
-
 
