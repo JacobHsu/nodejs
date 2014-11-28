@@ -1,0 +1,10 @@
+{
+  "name": "async",
+  "author": "Jacob Hsu",
+  "version": "0.0.1",
+  "description": "async",
+  "dependencies": {
+    "async": "~0.2.10"
+  },
+  "engine": "node 0.10.x"
+}
