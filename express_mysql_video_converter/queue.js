@@ -1,3 +1,4 @@
+global.config  = require('./config')();
 global.mysql   = require('./mysql');
 var async = require('async');
 var moment = require('moment');
@@ -29,7 +30,7 @@ mysqldb.prototype.push = function (postReq, postFrom, postAgent, my_callback){
 
 mysqldb.prototype.pop = function(qid, my_callback) {
 
-    mysql.execSql('SELECT * FROM '+config.dbtable.table+' where state= 0 ', [], function (err, rows) {        
+    mysql.execSql('SELECT * FROM '+config.dbtable.table+' where state= 0 limit 1', [], function (err, rows) {        
         if (err) {
             //console.log(err);
             my_callback('queue null');
@@ -40,9 +41,20 @@ mysqldb.prototype.pop = function(qid, my_callback) {
     });    
 }
 
-mysqldb.prototype.finish = function(qid, my_callback) {
+mysqldb.prototype.start = function(qid, my_callback) {
 
     mysql.execSql('UPDATE '+config.dbtable.table+' SET state = 1 WHERE id=?', [qid], function (err, rows) {        
+        if (err) {
+            my_callback("Couldn't UPDATE ", null);
+            return;
+        }
+        my_callback(qid+' start');
+    });
+}
+
+mysqldb.prototype.finish = function(qid, my_callback) {
+
+    mysql.execSql('UPDATE '+config.dbtable.table+' SET state = 2 WHERE id=?', [qid], function (err, rows) {        
         if (err) {
             my_callback("Couldn't UPDATE ", null);
             return;
@@ -51,6 +63,17 @@ mysqldb.prototype.finish = function(qid, my_callback) {
     });
 }
 
+
+mysqldb.prototype.err = function(qid, my_callback) {
+
+    mysql.execSql('UPDATE '+config.dbtable.table+' SET state = 4 WHERE id=?', [qid], function (err, rows) {        
+        if (err) {
+            my_callback("Couldn't UPDATE ", null);
+            return;
+        }
+        my_callback(qid+' error');
+    });
+}
 
 mysqldb.prototype.updateProgress = function(progress, qid, my_callback) {
 

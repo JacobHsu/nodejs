@@ -1,20 +1,11 @@
 var POLLING_INTERVAL = 5000;
 
 module.exports = function(app) {    
-    var pollingTimer;
+
     app.get('/get', function (req, res){
         res.send('Got a GET request');
         console.log(req.query);
     });
-    // var out;    
-     //pollingLoop(pollingTimer);
-    // var add_var = "Hello";
-    // console.log('&&&&&&&&&&&&&&&&&&&=='+ out._idleTimeout );
-    // console.log('out=='+out); //out==[object Object]
-    // console.log(out); //out=={ _idleTimeout: 3000 }
-
-    //setTimeout(pollingLoop, POLLING_INTERVAL);
-
 
     app.post('/post', function (req, res) {
 
@@ -39,9 +30,15 @@ function notFound(req, res)
 
 function pollingLoop(){ 
 
-    require('./consumer')( null, function (result) {          
-        console.log('[pollingLoop]'+result);
-    });
+    var cp = require('child_process');
+    var child = cp.fork('./supervisor');
 
-   //setTimeout(pollingLoop, POLLING_INTERVAL);
+    child.on('message', function(m) {
+        console.log('supervisor.pid='+child.pid+' '+m);
+        child.kill();
+
+    });
+    child.send(null);
+    
+    setTimeout(pollingLoop, POLLING_INTERVAL);
 }
