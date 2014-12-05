@@ -30,15 +30,12 @@ function notFound(req, res)
 
 function pollingLoop(){ 
 
-    var cp = require('child_process');
-    var child = cp.fork('./supervisor');
-
-    child.on('message', function(m) {
-        console.log('supervisor.pid='+child.pid+' '+m);
-        child.kill();
-
+    require('./supervisor')(null, function (result) {
+        console.log('[pollingLoop]'+result)
     });
-    child.send(null);
     
     setTimeout(pollingLoop, POLLING_INTERVAL);
 }
+
+
+

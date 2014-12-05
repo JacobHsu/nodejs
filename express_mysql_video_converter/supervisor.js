@@ -1,8 +1,7 @@
 var moment = require('moment');
 var colors = require('colors');
 
-process.on('message', function(m) {
-
+module.exports = function (pollingTimer, module_callback){
     var queue  = require('./queue');
 
     queue.pop(null, function(result){
@@ -16,10 +15,10 @@ process.on('message', function(m) {
    
                 if (typeof(m.taskid) !== "undefined"){
                     queue.finish(m.taskid, function(result){
-                        process.send( result.bgRed+' [consumer] end =========='.bgBlue);
+                        module_callback(result.bgRed+' [consumer] end =========='.bgBlue);
                     });
                 }else{
-                    process.send( m.bgRed+' [consumer] end =========='.bgBlue);
+                     module_callback( m.bgRed+' [consumer] end =========='.bgBlue);
                 }
 
 
@@ -33,18 +32,17 @@ process.on('message', function(m) {
     		};
 
             queue.start(result.id, function(result){
-                //console.log('Child process started: %d', child.pid);
                 console.log(moment().format('hh:mm:ss')+' PID='.bgBlue+child.pid+'========== [consumer] start '.bgBlue+result.bgRed);
             });
     		
     		child.send(videoReq);
 
          }else{
-            //process.send(moment().format('hh:mm:ss')+' [supervisor] pop null =========='.bgGreen);
+            //module_callback(moment().format('hh:mm:ss')+' [supervisor] pop null =========='.bgGreen);
          }
 
 
     });
 
-});
+}
 

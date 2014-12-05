@@ -46,7 +46,38 @@ process.on('message', function(videoReq) {
 
         },
         function(uuidFileName, callback){ 
-            
+
+            var command = config.ffmpeg.command;
+            var inputVideo = config.ffmpeg.input+uuidFileName+'.mp4'; 
+            args = ['-i',inputVideo]; 
+
+            var spawn = require('child_process').spawn,
+                ffmpeg = spawn(command, args),
+                start = new Date()
+
+            ffmpeg.stdout.on('data',function(data){
+                console.log('stdout:', data);
+            });
+
+            ffmpeg.stderr.on('data',function(data){
+               //console.log('stderr:', data.toString());
+               
+                var content = data.toString();
+                var size = (content) ? content.match(/p,(.*?)x(.*?),/g) : []; 
+                if(size)
+                {
+                   console.log(size[0].yellow);
+                   var btype = size[0].split("x");
+                   var reg=/[^\d]/g;
+                   var videoBtype = btype[1].substr(0,4).replace(reg, "");
+                   console.log('video btype='+ videoBtype.yellow);
+
+                   callback(null, uuidFileName,videoBtype); 
+                }
+            });
+        },
+        function(uuidFileName, videoBtype, callback){ 
+
             var command = config.ffmpeg.command;
             var inputVideo = config.ffmpeg.input+uuidFileName+'.mp4'; 
             var outputVideoName = config.ffmpeg.output+uuidFileName;
@@ -58,25 +89,25 @@ process.on('message', function(videoReq) {
             var size = videoReq.btype.split(',');
             if('' != size) {
                 for(var n in size){
-                    if(size[n]==="1080p"){
+                    if(size[n]==="1080p" && videoBtype >=1080){
                         outputVideo = outputVideoName+'-1080p.mp4';
                         output_args = ['-s','1920x1080','-b',config.ffmpeg.outputBitrate,'-ab',config.ffmpeg.audioBitrate,'-ac',config.ffmpeg.audioChannels, outputVideo]; 
                         args = args.concat(output_args);
                         outputVideoArray.push(outputVideo);
                     }
-                    else if(size[n]==="720p"){
+                    else if(size[n]==="720p" && videoBtype >=720){
                         outputVideo = outputVideoName+'-720p.mp4';
                         output_args = ['-s','1280x720','-b',config.ffmpeg.outputBitrate,'-ab',config.ffmpeg.audioBitrate,'-ac',config.ffmpeg.audioChannels, outputVideo]; 
                         args = args.concat(output_args);
                         outputVideoArray.push(outputVideo);
                     }
-                    else if(size[n]==="480p"){
+                    else if(size[n]==="480p" && videoBtype >=480){
                         outputVideo = outputVideoName+'-480p.mp4';
                         output_args = ['-s','854x480','-b',config.ffmpeg.outputBitrate,'-ab',config.ffmpeg.audioBitrate,'-ac',config.ffmpeg.audioChannels, outputVideo];
                         args = args.concat(output_args); 
                         outputVideoArray.push(outputVideo);
                     }
-                    else if(size[n]==="360p"){
+                    else if(size[n]==="360p" && videoBtype >=360){
                         outputVideo = outputVideoName+'-360p.mp4';
                         output_args = ['-s','640x360','-b',config.ffmpeg.outputBitrate,'-ab',config.ffmpeg.audioBitrate,'-ac',config.ffmpeg.audioChannels, outputVideo]; 
                         args = args.concat(output_args);
@@ -90,6 +121,11 @@ process.on('message', function(videoReq) {
             var str = args.toString()
             var commandstr = str.replace(/,/g, " ");
             //console.log('ffmpeg command:'+commandstr);
+            callback(null, command, args, outputVideoArray.length, outputVideoArray);
+        },
+        function(command, args, count, outputVideoArray, callback){ 
+            
+
             console.log('[videoencoder] ffmpeg : ');
 
             var spawn = require('child_process').spawn,
@@ -145,16 +181,16 @@ process.on('message', function(videoReq) {
                     //console.log(result);
                 });
  
-                //fs.appendFileSync(__dirname+config.ffmpeg.logfile, data.toString() );
+
 
             });
             ffmpeg.on('exit', function (code) {
-                //fs.appendFileSync(__dirname+config.ffmpeg.logfile, '~~~~~~~~~~~~~~~~~~~~~~~');
+
                 console.log('exit:'+code+' (0:Success 1:Fail) ');
                 
                 if(code==0){
                     console.log('convert time:', ((new Date() - start) / 1000), 's');
-                    console.log('[videoencoder] ffmpeg : '+outputVideoArray.length+' videos');
+                    console.log('[videoencoder] ffmpeg : '+count+' videos');
                 }
                 else
                     console.log('[videoencoder] ffmpeg : FAIL!!!');
@@ -193,6 +229,9 @@ process.on('message', function(videoReq) {
 
 
 }); 
+process.on('SIGHUP', function() {
+        process.exit();
+});
 
 function mp4boxExeMap(outputVideo, callback) {
 
