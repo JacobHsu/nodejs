@@ -3,6 +3,7 @@ global.mysql   = require('./mysql');
 var async = require('async');
 var moment = require('moment');
 var colors = require('colors');
+var url = require("url");
 
 module.exports = new mysqldb;
 function mysqldb(){   
@@ -10,7 +11,10 @@ function mysqldb(){
 }
 
 mysqldb.prototype.push = function (postReq, postFrom, postAgent, my_callback){
-    
+
+    var videoHash = url.parse(postReq.fileurl).pathname.split('/').slice(-2).shift(); 
+
+    postReq.hash = videoHash;
     postReq.progress = 'start';
     postReq.from = postFrom;
     postReq.agent = postAgent;
@@ -99,6 +103,21 @@ mysqldb.prototype.updateLog = function(log, qid, my_callback) {
         my_callback(null);
     });
 }
+
+mysqldb.prototype.queryProgress = function(qid, my_callback) {
+
+    mysql.execSql('SELECT progress FROM ' + config.dbtable.table + ' where hash=? limit 1', [qid], function(err, rows) {
+
+        if (err) {
+            console.log(err);
+            my_callback('queue null');
+        } else {
+            my_callback(rows[0]);
+        }
+
+    });
+}
+
 
 
 
