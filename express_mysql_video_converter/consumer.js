@@ -140,57 +140,78 @@ process.on('message', function(videoReq) {
                 progress = 0;
 
             ffmpeg.stderr.on('data', function(data) {
-                        // console.log('stderr:', data.toString());
 
-                        var content = data.toString();
-                        var totalTime = (content) ? content.match(/Duration: (.*?), start:/) : [];
+                var content = data.toString();
 
-                        if (totalTime)
-                            console.log('[videoencoder] ' + totalTime);
+                async.series([
+                        function(callback) {
 
-                        if (totalTime) {
-                            var rawDuration = totalTime[1];
-                            var arHMS = rawDuration.split(":").reverse();
-                            duration = parseFloat(arHMS[0]);
-                            if (arHMS[1]) duration += parseInt(arHMS[1]) * 60;
-                            if (arHMS[2]) duration += parseInt(arHMS[2]) * 60 * 60;
+                            var logContent = '#' + videoReq.taskid + '#' + content;
 
+                            //fs.appendFileSync(__dirname + config.ffmpeg.logfile, logContent);
+
+                            queue.updateLog(logContent, videoReq.taskid, function(result) {
+                                //process.stdout.write('['.bgGreen);
+                                callback(null, 'updateLog');
+                            });
+
+                        },
+                        function(callback) {
+
+                            var totalTime = (content) ? content.match(/Duration: (.*?), start:/) : [];
+                            if (totalTime) {
+
+                                process.stdout.write('###'.bgRed + videoReq.taskid + '###'.bgRed + '/Duration'.bgMagenta);
+
+                                var rawDuration = totalTime[1];
+                                var arHMS = rawDuration.split(":").reverse();
+                                duration = parseFloat(arHMS[0]);
+                                if (arHMS[1]) duration += parseInt(arHMS[1]) * 60;
+                                if (arHMS[2]) duration += parseInt(arHMS[2]) * 60 * 60;
+
+                            }
+
+                            var getTime = content.match(/time=(.*?) bitrate/g);
+                            if (getTime) {
+                                var rawTime = getTime[0].replace('time=', '').replace(' bitrate', '');
+
+                                arHMS = rawTime.split(":").reverse();
+                                time = parseFloat(arHMS[0]);
+                                if (arHMS[1]) time += parseInt(arHMS[1]) * 60;
+                                if (arHMS[2]) time += parseInt(arHMS[2]) * 60 * 60;
+
+                                progress = Math.round((time / duration) * 100);
+                                process.stdout.write(' [#'.red + videoReq.taskid + '=='.red + parseInt(duration - time) + "\#" + progress + "%" + "] ".red);
+
+
+                                if (progress)
+                                    queue.updateProgress(progress, videoReq.taskid, function(result) {});
+
+                            }
+
+                            callback(null, 'ffmpeg.stderr.on');
                         }
+                    ],
+                    function(err, results) {
 
-                        var getTime = content.match(/time=(.*?) bitrate/g);
+                        //process.stdout.write(videoReq.taskid+']'.bgGreen);
+                    });
 
 
-
-                        if (getTime) {
-                            var rawTime = getTime[0].replace('time=', '').replace(' bitrate', '');
-
-                            arHMS = rawTime.split(":").reverse();
-                            time = parseFloat(arHMS[0]);
-                            if (arHMS[1]) time += parseInt(arHMS[1]) * 60;
-                            if (arHMS[2]) time += parseInt(arHMS[2]) * 60 * 60;
-
-                            progress = Math.round((time / duration) * 100);
-                            process.stdout.write(parseInt(duration - time) + "\#" + progress + "% ");
-
-                            queue.updateProgress(progress, videoReq.taskid, function(result) {});
-
-                        }
-
-                        queue.updateLog(data.toString(), videoReq.taskid, function(result) {});
 
             });
             ffmpeg.on('exit', function(code) {
 
-                        console.log('exit:' + code + ' (0:Success 1:Fail) ');
+                    console.log('exit:' + code + ' (0:Success 1:Fail) ');
 
-                        if (code == 0) {
-                            queue.updateProgress(100, videoReq.taskid, function(result) {});
-                            console.log('convert time:', ((new Date() - start) / 1000), 's');
-                            console.log('[videoencoder] ffmpeg : ' + count + ' videos');
-                        } else
-                            console.log('[videoencoder] ffmpeg : FAIL!!!');
+                    if (code == 0) {
+                        queue.updateProgress(100, videoReq.taskid, function(result) {});
+                        console.log('convert time:'.bgMagenta, ((new Date() - start) / 1000), 's'.bgMagenta);
+                        console.log('[videoencoder] ffmpeg : ' + count + ' videos');
+                    } else
+                        console.log('[videoencoder] ffmpeg : FAIL!!!');
 
-                        callback(null, outputVideoArray);
+                    callback(null, outputVideoArray);
 
             });
             
