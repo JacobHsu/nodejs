@@ -36,7 +36,10 @@ module.exports = function(app) {
             logfile: '/log/log.txt'
         }, 
         mp4box: {
-            command: 'mp4box -raw 2 '//, Audio: 'mp4box -raw 2 '  -inter 0.5  
+            command: 'mp4box -inter 0.5 '//, Audio: 'mp4box -raw 2 '  -inter 0.5  
+        },
+        forks: {
+            max: 4  
         }
     };
 };

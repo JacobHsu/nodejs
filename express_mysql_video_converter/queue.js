@@ -47,7 +47,7 @@ mysqldb.prototype.pop = function(qid, my_callback) {
 
 mysqldb.prototype.start = function(qid, my_callback) {
 
-    mysql.execSql('UPDATE '+config.dbtable.table+' SET state = 1 WHERE id=?', [qid], function (err, rows) {        
+    mysql.execSql('UPDATE '+config.dbtable.table+' SET state = 1, log="start" WHERE id=?', [qid], function (err, rows) {        
         if (err) {
             my_callback("Couldn't UPDATE ", null);
             return;
@@ -86,7 +86,7 @@ mysqldb.prototype.updateProgress = function(progress, qid, my_callback) {
             my_callback("Couldn't UPDATE ", null);
             return;
         }
-        my_callback(null);
+        my_callback(qid);
     });
 }
 

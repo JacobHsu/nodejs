@@ -10,7 +10,15 @@ var queue  = require('./queue');
 process.on('message', function(videoReq) {
 
     async.waterfall([
-        function(callback){ 
+        function(callback) {
+
+           queue.start(videoReq.taskid, function(result) {
+                console.log('========== [consumer] queue start '.bgBlue + result.bgRed);
+                callback(null, result);
+            });
+
+        },
+        function(queueStartResult,callback){ 
 
             var uuidFileName = uuid.v1();
 
@@ -39,7 +47,7 @@ process.on('message', function(videoReq) {
                     });
 
                 } else {
-                    console.log('[videoencoder] wget : ' + videoReq.fileurl);
+                    //console.log('[videoencoder] wget : ' + videoReq.fileurl);
                     callback(null, uuidFileName);
                 }
             });
@@ -50,34 +58,62 @@ process.on('message', function(videoReq) {
 
             var command = config.ffmpeg.command;
             var inputVideo = config.ffmpeg.input + uuidFileName + '.mp4';
-            args = ['-i', inputVideo];
+            var args = ['-i', inputVideo, '-ss', '00:00:01', '-f', 'image2', '-vframes', '1', config.ffmpeg.input + uuidFileName + '.jpg'];
 
             var spawn = require('child_process').spawn,
-                ffmpeg = spawn(command, args),
-                start = new Date()
+                ffmpeg = spawn(command, args);
+
+            var videoBtype;
+            var videoDuration=0;
+            var ffmpegLog ='';
+
 
             ffmpeg.stdout.on('data', function(data) {
                 console.log('stdout:', data);
             });
 
             ffmpeg.stderr.on('data', function(data) {
-                //console.log('stderr:', data.toString());
+                ffmpegLog =  ffmpegLog + data.toString(); 
+            });
+            ffmpeg.on('exit', function(code) {
 
-                var content = data.toString();
-                var size = (content) ? content.match(/p,(.*?)x(.*?),/g) : [];
-                if (size) {
-                    console.log(size[0].yellow);
-                    var btype = size[0].split("x");
-                    var reg = /[^\d]/g;
-                    var videoBtype = btype[1].substr(0, 4).replace(reg, "");
-                    console.log('video btype=' + videoBtype.yellow);
+                if (code == 0) {
 
-                    callback(null, uuidFileName, videoBtype);
-                }
+                    var size = (ffmpegLog) ? ffmpegLog.match(/p,(.*?)x(.*?),/g) : [];
+                    if (size) {
+                        //process.stdout.write(size[0].yellow);
+                        var btype = size[0].split("x");
+                        var reg = /[^\d]/g;
+                        videoBtype = btype[1].substr(0, 4).replace(reg, "");
+                    }
+
+                    var totalTime = (ffmpegLog) ? ffmpegLog.match(/Duration: (.*?), start:/) : [];
+                    if (totalTime) {
+                        var rawDuration = totalTime[1];
+                        var arHMS = rawDuration.split(":").reverse();
+                        videoDuration = parseFloat(arHMS[0]);
+                        if (arHMS[1]) videoDuration += parseInt(arHMS[1]) * 60;
+                        if (arHMS[2]) videoDuration += parseInt(arHMS[2]) * 60 * 60;
+
+                    }
+
+                    console.log('totalTime: ' + totalTime);
+                    console.log('videoBtype: ' + videoBtype.yellow);
+                    console.log('videoDuration: ' + videoDuration);
+
+                    if (videoDuration)
+                        callback(null, uuidFileName, videoBtype, videoDuration);
+                    else
+                        console.log('[videoencoder] videoDuration : FAIL!!!');
+
+                } else
+                    console.log('[videoencoder] ffmpeg : FAIL!!!');
+
             });
 
+
         },
-        function(uuidFileName, videoBtype, callback){ 
+        function(uuidFileName, videoBtype, videoDuration, callback){ 
 
             var command = config.ffmpeg.command;
             var inputVideo = config.ffmpeg.input + uuidFileName + '.mp4';
@@ -119,99 +155,70 @@ process.on('message', function(videoReq) {
             var str = args.toString()
             var commandstr = str.replace(/,/g, " ");
             //console.log('ffmpeg command:'+commandstr);
-            callback(null, command, args, outputVideoArray.length, outputVideoArray);
+            callback(null, command, args, outputVideoArray.length, outputVideoArray, videoDuration);
 
         },
-        function(command, args, count, outputVideoArray, callback){ 
+        function(command, args, count, outputVideoArray, videoDuration, callback){ 
             
-
-            console.log('[videoencoder] ffmpeg : ');
+            process.stdout.write('◢▆▅▄▃[videoencoder] ffmpeg : ');
 
             var spawn = require('child_process').spawn,
                 ffmpeg = spawn(command, args),
-                start = new Date()
+                start = new Date();
 
             ffmpeg.stdout.on('data', function(data) {
                 console.log('stdout:', data);
             });
 
-            var duration = 0,
-                time = 0,
-                progress = 0;
-
+            var time = 0;
+            var ffmpegLog ='';
+            
             ffmpeg.stderr.on('data', function(data) {
 
+                ffmpegLog = ffmpegLog + data.toString(); 
                 var content = data.toString();
 
-                async.series([
-                        function(callback) {
+                var getTime = content.match(/time=(.*?) bitrate/g);
+                if (getTime) {
 
-                            var logContent = '#' + videoReq.taskid + '#' + content;
+                    var rawTime = getTime[0].replace('time=', '').replace(' bitrate', '');
 
-                            //fs.appendFileSync(__dirname + config.ffmpeg.logfile, logContent);
+                    arHMS = rawTime.split(":").reverse();
+                    time = parseFloat(arHMS[0]);
+                    if (arHMS[1]) time += parseInt(arHMS[1]) * 60;
+                    if (arHMS[2]) time += parseInt(arHMS[2]) * 60 * 60;
 
-                            queue.updateLog(logContent, videoReq.taskid, function(result) {
-                                //process.stdout.write('['.bgGreen);
-                                callback(null, 'updateLog');
-                            });
+                    var progress = Math.round((time / videoDuration) * 100);
+                    if (progress) {
+                        queue.updateProgress(progress, videoReq.taskid, function(result) {
+                            process.stdout.write(' ▅[#' + result + '==' + progress + "%" + "]▅ ");
+                        });
 
-                        },
-                        function(callback) {
+                    }
 
-                            var totalTime = (content) ? content.match(/Duration: (.*?), start:/) : [];
-                            if (totalTime) {
-
-                                process.stdout.write('###'.bgRed + videoReq.taskid + '###'.bgRed + '/Duration'.bgMagenta);
-
-                                var rawDuration = totalTime[1];
-                                var arHMS = rawDuration.split(":").reverse();
-                                duration = parseFloat(arHMS[0]);
-                                if (arHMS[1]) duration += parseInt(arHMS[1]) * 60;
-                                if (arHMS[2]) duration += parseInt(arHMS[2]) * 60 * 60;
-
-                            }
-
-                            var getTime = content.match(/time=(.*?) bitrate/g);
-                            if (getTime) {
-                                var rawTime = getTime[0].replace('time=', '').replace(' bitrate', '');
-
-                                arHMS = rawTime.split(":").reverse();
-                                time = parseFloat(arHMS[0]);
-                                if (arHMS[1]) time += parseInt(arHMS[1]) * 60;
-                                if (arHMS[2]) time += parseInt(arHMS[2]) * 60 * 60;
-
-                                progress = Math.round((time / duration) * 100);
-                                process.stdout.write(' [#'.red + videoReq.taskid + '=='.red + parseInt(duration - time) + "\#" + progress + "%" + "] ".red);
-
-
-                                if (progress)
-                                    queue.updateProgress(progress, videoReq.taskid, function(result) {});
-
-                            }
-
-                            callback(null, 'ffmpeg.stderr.on');
-                        }
-                    ],
-                    function(err, results) {
-
-                        //process.stdout.write(videoReq.taskid+']'.bgGreen);
-                    });
-
+                }
 
 
             });
             ffmpeg.on('exit', function(code) {
 
-                    console.log('exit:' + code + ' (0:Success 1:Fail) ');
-
                     if (code == 0) {
-                        queue.updateProgress(100, videoReq.taskid, function(result) {});
-                        console.log('convert time:'.bgMagenta, ((new Date() - start) / 1000), 's'.bgMagenta);
-                        console.log('[videoencoder] ffmpeg : ' + count + ' videos');
+
+                        queue.updateProgress(100, videoReq.taskid, function(result) {
+                            console.log('#' + videoReq.taskid + '#' + '▃▄▅▇◣');
+                        });
+                        
+                        //console.log(ffmpegLog.red);
+                        queue.updateLog(ffmpegLog, videoReq.taskid, function(result) {
+                            console.log('[videoencoder] #' + videoReq.taskid  +' convert time:' + ((new Date() - start) / 1000) + 's');
+                            console.log('[videoencoder] ffmpeg : ' + count + ' videos');
+                            callback(null, outputVideoArray);
+                        });
+
+
                     } else
                         console.log('[videoencoder] ffmpeg : FAIL!!!');
 
-                    callback(null, outputVideoArray);
 
             });
             
@@ -265,7 +272,7 @@ function mp4boxExeMap(outputVideo, callback) {
         if (err) throw err;
     });
     child.on('exit', function(code) {
-        console.log('[videoencoder] mp4box : ' + mp4box.slice(-25) + ' exit:' + code + ' (0:Success 1:Fail) ');
+        //console.log('[videoencoder] mp4box : ' + mp4box.slice(-25) + ' exit:' + code + ' (0:Success 1:Fail) ');
         var fileurl = config.files.url + mp4box.split('/').pop();
         callback(null, fileurl);
     });

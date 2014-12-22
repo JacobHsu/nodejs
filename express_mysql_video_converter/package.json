@@ -4,14 +4,16 @@
     "version": "0.1.1",
     "private": true,
     "dependencies": {
-        "express": "4.x",
+        "async": "*",
         "body-parser": "1.X",
-        "node-uuid": "1.x",
-        "async":"*", 
-        "mysql": "*",
-        "moment": "*",  
-        "request": "*",
+        "bufferhelper": "*",
+        "cluster": "^0.7.7",
         "colors": "*",
-        "bufferhelper": "*"
+        "express": "4.x",
+        "moment": "*",
+        "mysql": "*",
+        "node-persist": "0.0.2",
+        "node-uuid": "1.x",
+        "request": "*"
     }
 }
