@@ -11,7 +11,7 @@ module.exports = function(pollingTimer, module_callback) {
 
         storage.initSync();
 
-        process.stdout.write( ' numForks= '.green+storage.length() );
+        //process.stdout.write( ' numForks= '.green+storage.length() );
          
         for (var i=0; i < storage.length(); i++)  {
            process.stdout.write('#'.green + storage.key(i) );
