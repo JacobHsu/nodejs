@@ -104,10 +104,7 @@ process.on('message', function(videoReq) {
                     });
 
                     if (videoBtype && videoDuration) {
-                        if (videoBtype >= 360)
                             callback(null, uuidFileName, extname, videoBtype, videoDuration);
-                        else
-                            console.log('[videoencoder] videoBtype < 360p : FAIL!!!');
                     } else {
                         queue.err(videoReq.taskid, function(result) {
                             console.log('[videoencoder] videoBtype or videoDuration : FAIL!!!');
@@ -156,7 +153,7 @@ process.on('message', function(videoReq) {
                         output_args = ['-s', '854x480', '-b', config.ffmpeg.outputBitrate480p, '-ab', config.ffmpeg.audioBitrate480p, '-ac', config.ffmpeg.audioChannels, outputVideo];
                         args = args.concat(output_args);
                         outputVideoArray.push(outputVideo);
-                    } else if (size[n] === "360p" && videoBtype >= 360) {
+                    } else if (size[n] === "360p") {
                         outputVideo = outputVideoName + '-360p.mp4';
                         output_args = ['-s', '640x360', '-b', config.ffmpeg.outputBitrate360p, '-ab', config.ffmpeg.audioBitrate360p, '-ac', config.ffmpeg.audioChannels, outputVideo];
                         args = args.concat(output_args);
