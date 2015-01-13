@@ -1,4 +1,5 @@
 var queue = require('./queue');
+var jobs = require('./jobs');
 
 exports.video = function(req, res) {
 
@@ -10,10 +11,11 @@ exports.video = function(req, res) {
 
 exports.progress = function(req, res) {
 
-    queue.queryProgress(req.body.hash, function(result) {
+    jobs.queryProgress(req.body.videoid, function(result) {
         res.json(result);
     });
 
 };
+
 
 

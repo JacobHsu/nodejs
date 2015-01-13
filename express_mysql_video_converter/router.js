@@ -1,4 +1,7 @@
 var POLLING_INTERVAL = 5000;
+var cp = require('child_process');
+var child = cp.fork('./supervisor');
+
 
 module.exports = function(app) {
 
@@ -6,7 +9,14 @@ module.exports = function(app) {
     app.post('/video', videoecndoer.video);
     app.post('/progress', videoecndoer.progress);
 
+
+    child.on('message', function(m) {
+        //console.log('Child process started: %d', child.pid);
+        //console.log('received: ' + m);
+    });
+
     pollingLoop();
+
 
 };
 
@@ -14,10 +24,11 @@ function notFound(req, res) {
     res.send('404', 'Page Not Found');
 }
 
+
 function pollingLoop() {
 
-    require('./supervisor')(null, function(result) {
-        console.log('[pollingLoop]' + result)
+    child.send({
+        forkId: child.pid
     });
 
     setTimeout(pollingLoop, POLLING_INTERVAL);

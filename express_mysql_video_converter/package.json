@@ -12,7 +12,6 @@
         "express": "4.x",
         "moment": "*",
         "mysql": "*",
-        "node-persist": "0.0.2",
         "node-uuid": "1.x",
         "request": "*"
     }

@@ -1,6 +1,7 @@
 module.exports = function(app) {
     return {
         server: {
+            host:'127.0.0.1',
             port: 8080
         },
         mysql: {
@@ -14,9 +15,6 @@ module.exports = function(app) {
         dbtable: {
             table: 'videoencoder'
         },
-        files: {
-            url : 'http://files/'
-        },
         wget: { 
             command: 'wget --no-check-certificate ',
             output: ' -O ',
@@ -25,24 +23,18 @@ module.exports = function(app) {
         ffmpeg: { //https://www.ffmpeg.org/ffmpeg.html
             command  : 'ffmpeg',
             input    : 'videos/',
-            output   : 'C:/xampp/htdocs/files/',
+            output   : 'public/',
             vcodec   : 'libx264',
             bitrate  :'100',
             tolerance : '100',
             //videoSize    : '640x360', //1080p：1920x1080 , 720p：1280x720, 480p：854x480, 360p：640x360
-            outputBitrate1080p : '8000k',
-            outputBitrate720p : '5000k',
-            outputBitrate480p : '2500k',
-            outputBitrate360p : '1000k',
-            audioBitrate1080p : '384k',
-            audioBitrate720p : '384k',
-            audioBitrate480p : '128k',
-            audioBitrate360p : '128k',
+            outputBitrate:{ v1080p:'8000k', v720p:'5000k', v480p:'2500k', v360p:'1000k' },
+            audioBitrate:{ v1080p:'384k', v720p:'384k', v480p:'128k', v360p:'128k' },
             audioChannels: '2',
             logfile: '/log/log.txt'
         }, 
         mp4box: {
-            command: 'mp4box -inter 0.5 '//, Audio: 'mp4box -raw 2 '  -inter 0.5  
+            command: 'mp4box -inter 0.5 ' 
         },
         forks: {
             max: 4  
