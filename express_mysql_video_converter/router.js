@@ -1,22 +1,33 @@
-var POLLING_INTERVAL = 5000;
-var cp = require('child_process');
-var child = cp.fork('./supervisor');
-
+var queue = require('./queue');
+var jobs = require('./jobs');
 
 module.exports = function(app) {
 
-    var videoecndoer = require('./controllers');
-    app.post('/video', videoecndoer.video);
-    app.post('/progress', videoecndoer.progress);
+    app.post('/video', video);
+    app.post('/progress', progress);
+
+    var cp = require('child_process');
+    var child = cp.fork('./supervisor');
+
+    child.send({});
+
+    app.get('*', notFound);
+};
 
 
-    child.on('message', function(m) {
-        //console.log('Child process started: %d', child.pid);
-        //console.log('received: ' + m);
+function video(req, res) {
+
+    queue.push(req, function(result) {
+        res.json(result);
     });
 
-    pollingLoop();
+};
 
+function progress(req, res) {
+
+    jobs.queryProgress(req.body.videoid, function(result) {
+        res.json(result);
+    });
 
 };
 
@@ -25,11 +36,4 @@ function notFound(req, res) {
 }
 
 
-function pollingLoop() {
 
-    child.send({
-        forkId: child.pid
-    });
-
-    setTimeout(pollingLoop, POLLING_INTERVAL);
-}

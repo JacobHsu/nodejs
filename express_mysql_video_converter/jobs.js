@@ -6,36 +6,14 @@ function mysqldb() {
     mysql.start(config.mysql);
 }
 
-mysqldb.prototype.start = function(qid, my_callback) {
+mysqldb.prototype.updateState = function(state, qid, my_callback) {
 
-    mysql.execSql('UPDATE ' + config.dbtable.table + ' SET state = 1, log="{start}" WHERE id=?', [qid], function(err, rows) {
+    mysql.execSql('UPDATE ' + config.dbtable.table + ' SET state = ? WHERE id=?', [state, qid], function(err, rows) {
         if (err) {
-            my_callback("Couldn't UPDATE ", null);
+            my_callback("Couldn't UPDATE State ( start=1 / finish=2 / err=3,4,5,6 )", null);
             return;
         }
-        my_callback(qid + ' start');
-    });
-}
-
-mysqldb.prototype.finish = function(qid, my_callback) {
-
-    mysql.execSql('UPDATE ' + config.dbtable.table + ' SET state = 2 WHERE id=?', [qid], function(err, rows) {
-        if (err) {
-            my_callback("Couldn't UPDATE ", null);
-            return;
-        }
-        my_callback(qid + ' finish');
-    });
-}
-
-mysqldb.prototype.err = function(qid, my_callback) {
-
-    mysql.execSql('UPDATE ' + config.dbtable.table + ' SET state = 4 WHERE id=?', [qid], function(err, rows) {
-        if (err) {
-            my_callback("Couldn't UPDATE ", null);
-            return;
-        }
-        my_callback(qid + ' error');
+        my_callback(qid);
     });
 }
 
@@ -43,7 +21,7 @@ mysqldb.prototype.updateProgress = function(progress, qid, my_callback) {
 
     mysql.execSql('UPDATE ' + config.dbtable.table + ' SET progress = ? WHERE id=?', [progress, qid], function(err, rows) {
         if (err) {
-            my_callback("Couldn't UPDATE ", null);
+            my_callback("Couldn't UPDATE Progress", null);
             return;
         }
         my_callback(qid);
@@ -52,7 +30,7 @@ mysqldb.prototype.updateProgress = function(progress, qid, my_callback) {
 
 mysqldb.prototype.queryProgress = function(qid, my_callback) {
 
-    mysql.execSql('SELECT progress FROM ' + config.dbtable.table + ' where videoid=? limit 1', [qid], function(err, rows) {
+    mysql.execSql('SELECT progress FROM ' + config.dbtable.table + ' where id=? limit 1', [qid], function(err, rows) {
 
         if (err) {
             console.log(err);

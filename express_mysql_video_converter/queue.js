@@ -9,21 +9,25 @@ function mysqldb() {
     mysql.start(config.mysql);
 }
 
-mysqldb.prototype.push = function(postReq, postFrom, postAgent, my_callback) {
+mysqldb.prototype.push = function(req, my_callback) {
 
-    postReq.videoid = url.parse(postReq.recipient).pathname.split('/').pop();
-    postReq.progress = '0';
-    postReq.from = postFrom;
-    postReq.agent = postAgent;
-    postReq.enterdate = moment().format('YYYY-MM-DD, hh:mm:ss');
-    postReq.log = 'start';
+    var queuePushReq= req.body;
 
-    mysql.execSql('INSERT INTO ' + config.dbtable.table + ' SET ?', postReq, function(err, rows) {
+    queuePushReq.progress = '0';
+    queuePushReq.from = req.connection.remoteAddress;
+    queuePushReq.agent = req.headers['user-agent'];
+    queuePushReq.enterdate = moment().format('YYYY-MM-DD, hh:mm:ss');
+    queuePushReq.log = 'start';
+
+    mysql.execSql('INSERT INTO ' + config.dbtable.table + ' SET ?', queuePushReq, function(err, rows) {
 
         if (err) {
-            console.log(err);
+            my_callback('push err');
         } else {
-            my_callback('========== [router] callback queue: all items have been processed ==========');
+            var pushResult = {};
+            pushResult.status = 'ok';
+            pushResult.id = rows.insertId;
+            my_callback(pushResult);
         }
     });
 }
@@ -37,7 +41,6 @@ mysqldb.prototype.pop = function(qid, my_callback) {
         } else {
             my_callback(rows[0]);
         }
-
     });
 }
 

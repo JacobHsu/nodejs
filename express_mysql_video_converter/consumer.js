@@ -14,10 +14,10 @@ process.on('message', function(videoReq) {
     async.waterfall([
         function(callback) {
 
-           jobs.start(videoReq.taskid, function(result) {
-                console.log('========== [consumer] queue start '.bgBlue + result.bgRed);
-                callback(null, result);
-            });
+           jobs.updateState(1, videoReq.taskid, function(result) {
+               console.log('========== [consumer] queue start '.bgBlue + videoReq.taskid);
+               callback(null, result);
+           });
 
         },
         function(queueStartResult,callback){ 
@@ -30,7 +30,7 @@ process.on('message', function(videoReq) {
 
             var extname = path.extname(videoReq.fileurl);
             var filepath = config.wget.dir + '/' + uuidFileName + extname;
-            console.log(filepath);
+
             fs.exists(filepath, function(exists) {
                 if (exists) {
                     var newUuidFileName = uuid.v1();
@@ -41,17 +41,11 @@ process.on('message', function(videoReq) {
             var exec = require('child_process').exec,
                 child;
             var wget = config.wget.command + videoReq.fileurl + config.wget.output + filepath;
-
             child = exec(wget, function(err, stdout, stderr) {
 
                 if (err) {
-
-                    jobs.err(videoReq.taskid, function(result) {
-                        process.send('[videoencoder] ' + videoReq.taskid + ' wget fail ' + err);
-                    });
-
+                    callback('err', 3);
                 } else {
-                    //console.log('[videoencoder] wget : ' + videoReq.fileurl);
                     callback(null, uuidFileName, extname);
                 }
 
@@ -68,7 +62,7 @@ process.on('message', function(videoReq) {
             var spawn = require('child_process').spawn,
                 ffmpeg = spawn(command, args);
 
-            var videoBtype;
+            var videoBtype = 0;
             var videoDuration = 0;
             var ffmpegLog = '';
 
@@ -99,28 +93,22 @@ process.on('message', function(videoReq) {
                         if (arHMS[2]) videoDuration += parseInt(arHMS[2]) * 60 * 60;
                     }
 
-                    var ffmpegDebugLog = '{ffmpeg_check_video : [videoUuid:' + uuidFileName + ', videoBtype:' + videoBtype + ',videoDuration:' + videoDuration + ']}';
-                    jobs.updateLog(ffmpegLog + ffmpegDebugLog, videoReq.taskid, function(result) {
-                        console.log('size: ' + size[0]);
-                        console.log('totalTime: ' + totalTime);
-                        console.log('videoBtype: ' + videoBtype);
-                        console.log('videoDuration: ' + videoDuration);
-                    });
-
                     if (videoBtype && videoDuration) {
+
+                        var ffmpegDebugLog = '{ffmpeg_check_video : [videoUuid:' + uuidFileName + ', videoBtype:' + videoBtype + ',videoDuration:' + videoDuration + ']}';
+                        jobs.updateLog(ffmpegLog + ffmpegDebugLog, videoReq.taskid, function(result) {
+                            console.log('videoBtype: ' + videoBtype);
+                            console.log('videoDuration: ' + videoDuration);
                             callback(null, uuidFileName, extname, videoBtype, videoDuration);
-                    } else {
-                        jobs.err(videoReq.taskid, function(result) {
-                            console.log('[videoencoder] videoBtype or videoDuration : FAIL!!!');
                         });
+
+                    } else {
+                        callback('err', 5);
                     }
 
 
                 } else {
-                    console.log('[videoencoder] ffmpeg Check: FAIL!!!');
-                    jobs.err(videoReq.taskid, function(result) {
-                        process.send('[videoencoder] ' + videoReq.taskid + ' ffmpeg check fail ' + err);
-                    });
+                    callback('err', 4);
                 }
 
 
@@ -209,7 +197,6 @@ process.on('message', function(videoReq) {
                         jobs.updateProgress(progress, videoReq.taskid, function(result) {
                             //process.stdout.write(' ▅[#' + result + '==' + progress + "%" + "]▅ ");
                         });
-
                     }
 
                 }
@@ -233,9 +220,9 @@ process.on('message', function(videoReq) {
                             callback(null, uuidFileName, outputVideoArray);
                         });
 
-
-                    } else
-                        console.log('[videoencoder] ffmpeg : FAIL!!!');
+                    } else {
+                        callback('err', 4);
+                    }
 
 
             });
@@ -251,25 +238,59 @@ process.on('message', function(videoReq) {
                     var jsonObj = {};
                     jsonObj.files = result;
                     jsonObj.filename = fileName;
-                    //console.log(jsonObj); 
 
                     require('./request')(jsonObj, videoReq.recipient, function(result) {
-                        console.log('[videoencoder] callback request:'+ JSON.stringify(result)); 
-                        callback(null, {
-                            taskid: videoReq.taskid,
-                            state: 'Finished'
-                        });
+
+                        if (typeof(result) === "undefined"){
+                            callback('err', 8);
+                        } else{
+                            console.log('[videoencoder] videoReq.recipient:'+ videoReq.recipient);
+                            console.log('[videoencoder] callback request:'+ JSON.stringify(result)); 
+                            callback(null, {
+                                taskid: videoReq.taskid,
+                                forkpid:videoReq.forkpid,
+                                state: 'Finished'
+                            });
+                        }
                     });
 
-
                 } else {
-                    console.log('Error: ' + err);
+                    callback('err', 6);
                 }
             });
 
         }
-    ], function (err, result) {   
-          process.send(result);
+    ], function (err, result) {
+
+        if (result == 3) {
+            jobs.updateState(3, videoReq.taskid, function(result) {
+                process.send('[videoencoder] ' + videoReq.taskid + ' wget FAIL!!!');
+            });
+        } else if (result == 4) {
+            jobs.updateState(4, videoReq.taskid, function(result) {
+                process.send('[videoencoder] ' + videoReq.taskid + ' ffmpeg check FAIL!!!');
+            });
+        } else if (result == 5) {
+            jobs.updateState(5, videoReq.taskid, function(result) {
+                process.send('[videoencoder] ' + videoReq.taskid + ' videoBtype or videoDuration : FAIL!!!');
+            });
+        } else if (result == 6) {
+            jobs.updateState(6, videoReq.taskid, function(result) {
+                process.send('[videoencoder] ' + videoReq.taskid + ' mp4boxExeMap FAIL!!!');
+            });
+        } else if (result == 7) {
+            jobs.updateState(7, videoReq.taskid, function(result) {
+                process.send('[videoencoder] ' + videoReq.taskid + ' mp4box FAIL!!!');
+            });
+        } else if (result == 8) {
+            jobs.updateState(8, videoReq.taskid, function(result) {
+               process.send('[videoencoder] ' + videoReq.taskid + ' request : FAIL!!!');
+            });
+        } else {
+            process.send(result);
+        }
+
+        
     });
 
 
@@ -289,10 +310,15 @@ function mp4boxExeMap(outputVideo, callback) {
         if (err) throw err;
     });
     child.on('exit', function(code) {
-        //console.log('[videoencoder] mp4box : ' +  mp4box.slice(-25) + ' exit:' + code + ' (0:Success 1:Fail) ');
-        var fileurl = 'http://'+config.server.host+':'+ config.server.port+'/'+  mp4box.split('/').pop();
-        callback(null, fileurl);
+
+        if (code == 0) {
+            var fileurl = 'http://'+config.server.host+':'+ config.server.port+'/'+  mp4box.split('/').pop();
+            callback(null, fileurl);
+        } else {
+            callback('err', 7);
+        }
     });
 }
+
 
 

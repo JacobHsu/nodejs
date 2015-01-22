@@ -37,7 +37,7 @@ module.exports = function(app) {
             command: 'mp4box -inter 0.5 ' 
         },
         forks: {
-            max: 4  
+            max: 4
         }
     };
 };
