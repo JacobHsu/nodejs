@@ -22,21 +22,35 @@ process.on('message', function(videoReq) {
         },
         function(queueStartResult,callback){ 
 
-            var uuidFileName = uuid.v1();
-
             if (!fs.existsSync(config.wget.dir)) {
                 fs.mkdirSync(config.wget.dir);
             }
-
+            var uuidFileName = uuid.v1();
             var extname = path.extname(videoReq.fileurl);
             var filepath = config.wget.dir + '/' + uuidFileName + extname;
 
-            fs.exists(filepath, function(exists) {
-                if (exists) {
-                    var newUuidFileName = uuid.v1();
-                    filepath = config.wget.dir + '/' + newUuidFileName + extname;
-                }
+            var isWget;
+            async.until(function() {
+                return isWget;
+            }, function(untilCallback) {
+
+                fs.exists(filepath, function(exists) {
+                    if (exists) {
+                        uuidFileName = uuid.v1();
+                        filepath = config.wget.dir + '/' + uuidFileName + extname;
+                        isWget = false;
+                        setTimeout(untilCallback, 1000);
+                    } else {
+                        isWget = true;
+                        callback(null, uuidFileName, extname, filepath);
+                    }
+                });
+
+            }, function(error) {
+                callback('err', 9);
             });
+        },
+        function(uuidFileName, extname, filepath, callback) {
 
             var exec = require('child_process').exec,
                 child;
@@ -44,13 +58,17 @@ process.on('message', function(videoReq) {
             child = exec(wget, function(err, stdout, stderr) {
 
                 if (err) {
-                    callback('err', 3);
+
+                    var wgetDebugLog = '{wget_error_msg :' + err + '}';
+                    jobs.updateLog(wgetDebugLog, videoReq.taskid, function(result) {
+                        callback('err', 3);
+                    });
+
                 } else {
                     callback(null, uuidFileName, extname);
                 }
 
             });
-
 
         },
         function(uuidFileName, extname, callback){ 
@@ -103,7 +121,11 @@ process.on('message', function(videoReq) {
                         });
 
                     } else {
-                        callback('err', 5);
+
+                        var ffmpegDebugLog = '{ffmpeg_check_video_fail : [size:' + size + ',totalTime:' + totalTime + ']}';
+                        jobs.updateLog(ffmpegLog + ffmpegDebugLog, videoReq.taskid, function(result) {
+                            callback('err', 5);
+                        });
                     }
 
 
@@ -121,53 +143,74 @@ process.on('message', function(videoReq) {
 
             var command = config.ffmpeg.command;
             var inputVideo = config.ffmpeg.input + uuidFileName + extname;
+            var input_args = ['-i', inputVideo];
+            var mp4_command_args = ['-pass', '1', '-vcodec', config.ffmpeg.vcodec, '-b:v', config.ffmpeg.bitrate , '-bt', config.ffmpeg.tolerance, '-threads', '0', '-qmin', '10', '-qmax', '31', '-g', '30'];
+            var webm_command_args = ['-vcodec', 'libvpx', '-quality', 'good', '-c:a', 'libvorbis'];
             var outputVideoName = config.ffmpeg.output + uuidFileName;
-            var outputVideo, outputVideoArray = [];
+            var outputVideoType = { 
+                '1080p': {mp4: outputVideoName+'-1080p.mp4', webm: outputVideoName+'-1080p.webm'},
+                '720p': {mp4: outputVideoName+'-720p.mp4', webm: outputVideoName+'-720p.webm'},
+                '480p': {mp4: outputVideoName+'-480p.mp4', webm: outputVideoName+'-480p.webm'},
+                '360p': {mp4: outputVideoName+'-360p.mp4', webm: outputVideoName+'-360p.webm'}
+            }; 
 
-            var input_args = ['-i', inputVideo, '-pass', '1', '-vcodec', config.ffmpeg.vcodec, '-b:v', config.ffmpeg.bitrate , '-bt', config.ffmpeg.tolerance, '-threads', '0', '-qmin', '10', '-qmax', '31', '-g', '30'];
-
-            var args = input_args;
+            var outputVideoMp4Array = [], outputVideoWebmArray = [];
+            var output_ffmpeg_args, output_webm_args;
             var size = videoReq.btype.split(',');
             if ('' != size) {
                 for (var n in size) {
                     if (size[n] === "1080p" && videoBtype >= 1080) {
-                        outputVideo = outputVideoName + '-1080p.mp4';
-                        output_args = ['-s', '1920x1080', '-b', config.ffmpeg.outputBitrate.v1080p, '-ab', config.ffmpeg.audioBitrate.v1080p, '-ac', config.ffmpeg.audioChannels, outputVideo];
-                        args = args.concat(output_args);
-                        outputVideoArray.push(outputVideo);
+
+                        outputVideoMp4Array.push(outputVideoType['1080p'].mp4);
+                        output_ffmpeg_args = ['-s', '1920x1080', '-b', config.ffmpeg.outputBitrate.v1080p, '-ab', config.ffmpeg.audioBitrate.v1080p, '-ac', config.ffmpeg.audioChannels, outputVideoType['1080p'].mp4];
+                        mp4_command_args = mp4_command_args.concat(output_ffmpeg_args);
+                        
                     } else if (size[n] === "720p" && videoBtype >= 720) {
-                        outputVideo = outputVideoName + '-720p.mp4';
-                        output_args = ['-s', '1280x720', '-b', config.ffmpeg.outputBitrate.v720p, '-ab', config.ffmpeg.audioBitrate.v720p, '-ac', config.ffmpeg.audioChannels, outputVideo];
-                        args = args.concat(output_args);
-                        outputVideoArray.push(outputVideo);
+
+                        outputVideoMp4Array.push(outputVideoType['720p'].mp4);
+                        output_ffmpeg_args = ['-s', '1280x720', '-b', config.ffmpeg.outputBitrate.v720p, '-ab', config.ffmpeg.audioBitrate.v720p, '-ac', config.ffmpeg.audioChannels, outputVideoType['720p'].mp4];
+                        mp4_command_args = mp4_command_args.concat(output_ffmpeg_args);
+                        
                     } else if (size[n] === "480p" && videoBtype >= 480) {
-                        outputVideo = outputVideoName + '-480p.mp4';
-                        output_args = ['-s', '854x480', '-b', config.ffmpeg.outputBitrate.v480p, '-ab', config.ffmpeg.audioBitrate.v480p, '-ac', config.ffmpeg.audioChannels, outputVideo];
-                        args = args.concat(output_args);
-                        outputVideoArray.push(outputVideo);
+
+                        outputVideoMp4Array.push(outputVideoType['480p'].mp4);
+                        output_ffmpeg_args = ['-s', '854x480', '-b', config.ffmpeg.outputBitrate.v480p, '-ab', config.ffmpeg.audioBitrate.v480p, '-ac', config.ffmpeg.audioChannels, outputVideoType['480p'].mp4];
+                        mp4_command_args = mp4_command_args.concat(output_ffmpeg_args);
+                        outputVideoWebmArray.push(outputVideoType['480p'].webm);
+                        output_webm_args = [ '-s', '854x480', outputVideoType['480p'].webm];
+                        webm_command_args = webm_command_args.concat(output_webm_args); 
+                        
                     } else if (size[n] === "360p") {
-                        outputVideo = outputVideoName + '-360p.mp4';
-                        output_args = ['-s', '640x360', '-b', config.ffmpeg.outputBitrate.v360p, '-ab', config.ffmpeg.audioBitrate.v360p, '-ac', config.ffmpeg.audioChannels, outputVideo];
-                        args = args.concat(output_args);
-                        outputVideoArray.push(outputVideo);
+
+                        outputVideoMp4Array.push(outputVideoType['360p'].mp4);
+                        output_ffmpeg_args = ['-s', '640x360', '-b', config.ffmpeg.outputBitrate.v360p, '-ab', config.ffmpeg.audioBitrate.v360p, '-ac', config.ffmpeg.audioChannels, outputVideoType['360p'].mp4];
+                        mp4_command_args = mp4_command_args.concat(output_ffmpeg_args);
+                        
+                        if(videoBtype < 480){
+                            outputVideoWebmArray.push(outputVideoType['360p'].webm);
+                            output_webm_args = [ '-s', '640x360', outputVideoType['360p'].webm];
+                            webm_command_args = webm_command_args.concat(output_webm_args); 
+                        }
+
+
                     }
                 }
 
             }
 
-
-            var str = args.toString()
+            var ffmpeg_args = input_args.concat(mp4_command_args).concat(webm_command_args);
+            var str = ffmpeg_args.toString()
             var commandstr = str.replace(/,/g, " ");
             //console.log('ffmpeg command:'+commandstr);
-            callback(null, uuidFileName, command, args, outputVideoArray.length, outputVideoArray, videoDuration);
+            callback(null, uuidFileName, command, ffmpeg_args, outputVideoMp4Array.length, outputVideoMp4Array, outputVideoWebmArray,videoDuration);
 
         },
-        function(uuidFileName, command, args, count, outputVideoArray, videoDuration, callback){ 
+        function(uuidFileName, command, ffmpeg_args, count, outputVideoMp4Array, outputVideoWebmArray, videoDuration, callback){ 
             
             process.stdout.write('◢▆▅▄▃[videoencoder] ffmpeg : ');
 
             var spawn = require('child_process').spawn,
-                ffmpeg = spawn(command, args),
+                ffmpeg = spawn(command, ffmpeg_args),
                 start = new Date();
 
             ffmpeg.stdout.on('data', function(data) {
@@ -213,11 +256,10 @@ process.on('message', function(videoReq) {
 
                         var convert_time = (new Date() - start) / 1000;
                         console.log('[videoencoder] #' + videoReq.taskid  +' convert time:' + convert_time + 's');
-                        console.log('[videoencoder] ffmpeg : ' + count + ' videos');
 
                         var ffmpegDebugLog ='{ffmpeg_video_encoder : [convert_time:'+convert_time+',convert_videos:'+count+']}';
                         jobs.updateLog(ffmpegLog +ffmpegDebugLog , videoReq.taskid, function(result) {
-                            callback(null, uuidFileName, outputVideoArray);
+                            callback(null, uuidFileName, outputVideoMp4Array, outputVideoWebmArray);
                         });
 
                     } else {
@@ -228,15 +270,21 @@ process.on('message', function(videoReq) {
             });
             
         },
-        function(uuidFileName, outputVideoArray,callback){
+        function(uuidFileName, outputVideoMp4Array, outputVideoWebmArray, callback){
             
-            async.map(outputVideoArray, mp4boxExeMap, function(err, result) {
+            async.map(outputVideoMp4Array, mp4boxExeMap, function(err, result) {
                 if (!err) {
 
                     var fileName = url.parse(videoReq.fileurl).pathname.split('/').pop().split('.').shift();
 
+                    var fileUrls = [];
+                    var files =  result.concat(outputVideoWebmArray);
+                    for (index = 0; index < files.length; ++index) {
+                        fileUrls[index] = 'http://'+config.server.host+':'+ config.server.port+'/'+  files[index].split('/').pop();
+                    }
+
                     var jsonObj = {};
-                    jsonObj.files = result;
+                    jsonObj.files = fileUrls;
                     jsonObj.filename = fileName;
 
                     require('./request')(jsonObj, videoReq.recipient, function(result) {
@@ -262,35 +310,31 @@ process.on('message', function(videoReq) {
         }
     ], function (err, result) {
 
-        if (result == 3) {
-            jobs.updateState(3, videoReq.taskid, function(result) {
-                process.send('[videoencoder] ' + videoReq.taskid + ' wget FAIL!!!');
-            });
-        } else if (result == 4) {
-            jobs.updateState(4, videoReq.taskid, function(result) {
-                process.send('[videoencoder] ' + videoReq.taskid + ' ffmpeg check FAIL!!!');
-            });
-        } else if (result == 5) {
-            jobs.updateState(5, videoReq.taskid, function(result) {
-                process.send('[videoencoder] ' + videoReq.taskid + ' videoBtype or videoDuration : FAIL!!!');
-            });
-        } else if (result == 6) {
-            jobs.updateState(6, videoReq.taskid, function(result) {
-                process.send('[videoencoder] ' + videoReq.taskid + ' mp4boxExeMap FAIL!!!');
-            });
-        } else if (result == 7) {
-            jobs.updateState(7, videoReq.taskid, function(result) {
-                process.send('[videoencoder] ' + videoReq.taskid + ' mp4box FAIL!!!');
-            });
-        } else if (result == 8) {
-            jobs.updateState(8, videoReq.taskid, function(result) {
-               process.send('[videoencoder] ' + videoReq.taskid + ' request : FAIL!!!');
+        if (typeof result === 'number') {
+
+            var errorMsg = { 
+                3: {msg: 'wget'},
+                4: {msg: 'ffmpegcheck'},
+                5: {msg: 'videoBtype'},
+                6: {msg: 'mp4boxExeMap'},
+                7: {msg: 'mp4box'},
+                8: {msg: 'request'},
+                9: {msg: 'fsexists'}
+            }; 
+            var msg = errorMsg[result].msg;
+
+            jobs.updateState(result, videoReq.taskid, function(result) {
+                process.send({
+                    taskid: videoReq.taskid,
+                    forkpid: videoReq.forkpid,
+                    state: 'Error',
+                    msg: msg
+                });
             });
         } else {
             process.send(result);
         }
 
-        
     });
 
 
@@ -312,8 +356,7 @@ function mp4boxExeMap(outputVideo, callback) {
     child.on('exit', function(code) {
 
         if (code == 0) {
-            var fileurl = 'http://'+config.server.host+':'+ config.server.port+'/'+  mp4box.split('/').pop();
-            callback(null, fileurl);
+            callback(null, outputVideo);
         } else {
             callback('err', 7);
         }
