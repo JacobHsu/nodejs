@@ -31,13 +31,67 @@ async.waterfall([
                var videoBtype = btype[1].substr(0,4).replace(reg, "");
                console.log('video btype='+ videoBtype.yellow);
 
-               callback(null, videoBtype);
+               callback(null, inputVideo, videoBtype);
             }
+
         });
 
-        
     },
-    function(videoBtype, callback){
+    function(inputVideo, videoBtype, callback){
+
+        var args = ['-i', inputVideo, '-ss', '00:00:01', '-f', 'image2', '-vframes', '1', config.ffmpeg.input + 'testvideo.jpg'];
+        var command ='ffmpeg';
+        var spawn = require('child_process').spawn,
+            ffmpeg = spawn(command, args);
+
+        var videoBtype = 0;
+        var videoDuration = 0;
+        var ffmpegLog = '';
+
+        ffmpeg.stdout.on('data', function(data) {
+            console.log('stdout:', data);
+        });
+
+        ffmpeg.stderr.on('data', function(data) {
+            ffmpegLog = ffmpegLog + data.toString();
+        });
+        ffmpeg.on('exit', function(code) {
+
+            if (code !== 0) {
+                return;
+            }
+            //全部組合完再找
+            console.log('==================== Fun1.2 Check videoDuration ========================'.bgGreen);
+            //console.log(ffmpegLog);
+
+
+            var size = (ffmpegLog) ? ffmpegLog.match(/Video: mjpeg, (.*?),(.*?)x(.*?),/g) : [];
+            if (size) {
+                var btype = size[0].split("x");
+                var reg = /[^\d]/g;
+                videoBtype = btype[1].substr(0, 4).replace(reg, "");
+            }
+
+            var totalTime = (ffmpegLog) ? ffmpegLog.match(/Duration: (.*?), start:/) : [];
+            if (totalTime) {
+                console.log(totalTime[0].yellow);
+                var rawDuration = totalTime[1];
+                var arHMS = rawDuration.split(":").reverse();
+                videoDuration = parseFloat(arHMS[0]);
+                if (arHMS[1]) videoDuration += parseInt(arHMS[1]) * 60;
+                if (arHMS[2]) videoDuration += parseInt(arHMS[2]) * 60 * 60;
+                console.log('[videoDuration]='.yellow+videoDuration);
+
+                callback(null, videoBtype, videoDuration);
+            }
+
+
+        });
+
+
+
+    },
+    function(videoBtype, videoDuration, callback){
 
         console.log('====================Fun2 Command========================'.bgGreen);
 
@@ -86,12 +140,12 @@ async.waterfall([
         var commandstr = str.replace(/,/g, " ");
         console.log('ffmpeg command:'+commandstr);
 
-        callback(null, command, args, outputVideoArray.length);
+        callback(null, command, args, videoDuration, outputVideoArray.length);
     },
-    function(command, args, count, callback){
+    function(command, args, videoDuration, count, callback){
 
         console.log('====================Fun3 Encoder========================'.bgGreen);
-
+        console.log('[videoencoder] videoDuration : '+videoDuration);
         console.log('[videoencoder] ffmpeg : ');
 
         var spawn = require('child_process').spawn,
@@ -105,39 +159,31 @@ async.waterfall([
         var duration = 0, time = 0, progress = 0;
 
         ffmpeg.stderr.on('data',function(data){
-           //console.log('stderr:', data.toString());
+           console.log('stderr:', data.toString());
            
             var content = data.toString();
-            var totalTime = (content) ? content.match(/Duration: (.*?), start:/) : [];
-
-            if(totalTime)
-                console.log('[videoencoder] '+ totalTime);
-
-            if( totalTime ){
-                var rawDuration = totalTime[1];
-                var arHMS = rawDuration.split(":").reverse();
-                duration = parseFloat(arHMS[0]);
-                if (arHMS[1]) duration += parseInt(arHMS[1]) * 60;
-                if (arHMS[2]) duration += parseInt(arHMS[2]) * 60 * 60;
-
-            }
 
             var getTime = content.match(/time=(.*?) bitrate/g);
-            
+            if (getTime) {
 
+                console.log('[getTime] '.bgBlue+ getTime);
 
-            if( getTime ){
-                var rawTime = getTime[0].replace('time=','').replace(' bitrate','');
+                var rawTime = getTime[0].replace('time=', '').replace(' bitrate', '');
 
                 arHMS = rawTime.split(":").reverse();
                 time = parseFloat(arHMS[0]);
                 if (arHMS[1]) time += parseInt(arHMS[1]) * 60;
                 if (arHMS[2]) time += parseInt(arHMS[2]) * 60 * 60;
 
-                progress = Math.round((time/duration) * 100);
-                process.stdout.write( parseInt(duration - time)+"\#"+progress+"% ");
-                
-                
+                // console.log('time:');
+                // console.log(time);
+                // console.log('videoDuration:');
+                // console.log(videoDuration);
+                 var progress = Math.round((time / videoDuration) * 100);
+                 // console.log('progress:');
+                 // console.log(progress);
+                 process.stdout.write( "\#"+progress+"% ");
+
             }
 
             //fs.appendFileSync(__dirname+config.ffmpeg.logfile, data.toString() );
