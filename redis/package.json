@@ -1,9 +1,0 @@
-{
-    "name": "redis",
-    "description": "redis",
-    "version": "0.0.1",
-    "private": true,
-    "dependencies": {
-        "redis": "*"
-    }
-}
