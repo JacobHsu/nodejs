@@ -20,7 +20,7 @@ var historical = function (symbol, from, to) {
     arrClose.unshift(quotes[0].symbol);
     console.log(arrClose);
     // https://c3js.org/samples/axes_x_tick_count.html
-    return null
+    //if(arrClose.length !==  undefined ) return arrClose
   });
 }
 
@@ -28,5 +28,7 @@ var historical = function (symbol, from, to) {
 
 
 const arrStock = ['VT','VTI','EWJ','EWY','EWT','EWH','EWS']
-const result = arrStock.map( stock => { historical(stock, '2020-05-11', '2020-05-15')  } );
-console.log(result)
+
+for(let stock of arrStock){
+  historical(stock, '2020-05-11', '2020-05-15') 
+}
